@@ -12,9 +12,7 @@ jobs:
   build-and-deploy:
     runs-on: alpine-docker/k8s
     steps:
-      - uses: actions/checkout@v3
-      
-      # Build Docker container
+      - uses: ubuntu-latest
       - name: Setup Docker
         run: |
           echo "1- CREATE THE NS istio-system"
