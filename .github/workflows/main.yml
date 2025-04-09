@@ -16,6 +16,9 @@ jobs:
 
       - name: Setup Docker
         run: |
+          echo "${{ secrets.KUBECONFIG }}" > ./config
+          export KUBECONFIG=$(pwd)/config
+          echo $KUBECONFIG
           echo "1- CREATE THE NS istio-system"
           kubectl create namespace istio-system
           
