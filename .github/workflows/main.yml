@@ -74,10 +74,8 @@ spec:
   - providers:
     - name: jaeger
 EOF
-
           echo "10- ENABLE ISTIO IN DEFAULT NAMESPACE"
           kubectl label namespace default istio-injection=enabled
-
           echo "11- DEPLOY TEST SERVICE"
           cd ..
           git clone https://github.com/GoogleCloudPlatform/microservices-demo.git
