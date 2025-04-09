@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vs1
+spec:
+  hosts:
+  - "example.com"
+  gateways:
+  - example-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/test"
+    rewrite:
+      uri: "/"
+    route:
+    - destination:
+        host: frontend-external.default.svc.cluster.local
+        port:
+          number: 80
