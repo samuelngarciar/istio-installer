@@ -45,34 +45,9 @@ jobs:
           kubectl rollout status deployment/kiali -n istio-system
 
           echo "9- ENABLE JAEGER SETTINGS"
-          cat <<EOF > ./tracing.yaml
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-spec:
-  meshConfig:
-    enableTracing: true
-    defaultConfig:
-      tracing: {} # disable legacy MeshConfig tracing options
-    extensionProviders:
-    - name: jaeger
-      opentelemetry:
-        port: 4317
-        service: jaeger-collector.istio-system.svc.cluster.local
-EOF
+          istioctl install -f ../extension-provider-jaeger.yml --skip-confirmation
+          kubectl apply -f ../enable-trace-jaeger.yml
 
-          istioctl install -f ./tracing.yaml --skip-confirmation
-
-          kubectl apply -f - <<EOF
-apiVersion: telemetry.istio.io/v1
-kind: Telemetry
-metadata:
-  name: mesh-default
-  namespace: istio-system
-spec:
-  tracing:
-  - providers:
-    - name: jaeger
-EOF
           echo "10- ENABLE ISTIO IN DEFAULT NAMESPACE"
           kubectl label namespace default istio-injection=enabled
           echo "11- DEPLOY TEST SERVICE"
@@ -82,46 +57,10 @@ EOF
           kubectl apply -f ./release/kubernetes-manifests.yaml
 
           echo "12- CREATE VIRTUAL SERVICE"
-          kubectl apply -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: vs1
-spec:
-  hosts:
-  - "example.com"
-  gateways:
-  - example-gateway
-  http:
-  - match:
-    - uri:
-        prefix: "/test"
-    rewrite:
-      uri: "/"
-    route:
-    - destination:
-        host: frontend-external.default.svc.cluster.local
-        port:
-          number: 80
-EOF
+          kubectl apply -f ../virtual-service-example.yml
 
           echo "13- CREATE GATEWAY"
-          kubectl apply -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: example-gateway
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-  - port:
-      number: 80
-      name: http
-      protocol: HTTP
-    hosts:
-    - "example.com"
-EOF
+          kubectl apply -f ../gateway-example.yaml
 
           echo "14- EXPOSE KIALI AND JAEGER"
           kubectl expose deployment kiali --port=80 --target-port=20001 --type=LoadBalancer --name lb-kiali -n istio-system
