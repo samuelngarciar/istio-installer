@@ -1,0 +1,141 @@
+name: Istio installer and addons
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  build-and-deploy:
+    runs-on: alpine-docker/k8s
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Build Docker container
+      - name: Setup Docker
+        run: |
+          echo "1- CREATE THE NS istio-system"
+          kubectl create namespace istio-system
+          
+          echo "2- INSTALL THE REPO OF ISTIO CHARTS"
+          helm repo add istio https://istio-release.storage.googleapis.com/charts
+          helm repo update
+
+          echo "3- INSTALL THE ISTIO BASE"
+          helm install istio-base istio/base --version 1.25.0 -n istio-system
+
+          echo "4- INSTALL THE DISCOVERY"
+          helm install istiod istio/istiod --version 1.25.0 -n istio-system --wait
+
+          echo "5- CREATE THE NS istio-ingress"
+          kubectl create namespace istio-ingress
+
+          echo "6- CREATE THE NS istio-ingress"
+          helm install istio-ingressgateway istio/gateway --version 1.25.0 -n istio-ingress
+
+          echo "7- DOWNLOAD ISTIO BINARY"
+          curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.25.0 sh -
+          cd istio-1.25.0
+          export PATH=$PWD/bin:$PATH
+
+          echo "8- INSTALL  ADDONS"
+          kubectl apply -f samples/addons
+          kubectl rollout status deployment/kiali -n istio-system
+
+          echo "9- ENABLE  JARGER SETTINGS"
+          cat <<EOF > ./tracing.yaml
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  meshConfig:
+    enableTracing: true
+    defaultConfig:
+      tracing: {} # disable legacy MeshConfig tracing options
+    extensionProviders:
+    - name: jaeger
+      opentelemetry:
+        port: 4317
+        service: jaeger-collector.istio-system.svc.cluster.local
+EOF
+
+          istioctl install -f ./tracing.yaml --skip-confirmation
+
+          kubectl apply -f - <<EOF
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: istio-system
+spec:
+  tracing:
+  - providers:
+    - name: jaeger
+EOF
+
+
+          echo "10- ENABLE ISTIO IN DEFAULT NAMESPACE"
+          kubectl label namespace default istio-injection=enabled
+
+          echo "11- DEPLOY SERVICE OF TEST"
+          cd ..
+          git clone https://github.com/GoogleCloudPlatform/microservices-demo.git
+          cd microservices-demo
+          kubectl apply -f ./release/kubernetes-manifests.yaml
+
+
+         echo "12 -CREATE VIRTUAL SERVICE"
+         kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: vs1
+spec:
+  hosts:
+  - "example.com"
+  gateways:
+  - example-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/test"
+    rewrite:
+      uri: "/"
+    route:
+    - destination:
+        host: frontend-external.default.svc.cluster.local
+        port:
+          number: 80
+EOF
+
+         echo "13 -CREATE GATEWAY"
+         kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: example-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "example.com"
+EOF
+
+
+         echo "14 -EXPOSE KIALI AND JAEGER"
+         kubectl expose deployment kiali --port=80 --target-port=20001 --type=LoadBalancer --name lb-kiali -n istio-system
+         kubectl expose deployment jaeger --port=80 --target-port=16686 --type=LoadBalancer --name lb-jeager -n istio-system
+
+
+         echo "15 - CHECK ALL SVC"
+         kubectl get svc --all-namespaces
+
+
+        echo "15 - CHECK ALL POD"
+        kubectl get pod --all-namespaces
