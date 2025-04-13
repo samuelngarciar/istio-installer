@@ -32,45 +32,40 @@ jobs:
           echo "4- INSTALL THE DISCOVERY"
           helm install istiod istio/istiod --version 1.25.0 -n istio-system --wait
 
-          echo "5- CREATE THE NS istio-ingress"
-          kubectl create namespace istio-ingress
-
-          echo "6- INSTALL THE ISTIO INGRESS GATEWAY"
-          helm install istio-ingressgateway istio/gateway --version 1.25.0 -n istio-ingress
-
-          echo "7- DOWNLOAD ISTIO BINARY"
+          echo "5- DOWNLOAD ISTIO BINARY"
           curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.25.0 sh -
           cd istio-1.25.0
           export PATH=$PWD/bin:$PATH
 
-          echo "8- INSTALL ADDONS"
+          echo "6- INSTALL ADDONS"
           kubectl apply -f samples/addons
           kubectl rollout status deployment/kiali -n istio-system
 
-          echo "9- ENABLE JAEGER SETTINGS"
+          echo "7- ENABLE JAEGER SETTINGS"
           istioctl install -f ../extension-provider-jaeger.yml --skip-confirmation
           kubectl apply -f ../enable-trace-jaeger.yml
 
-          echo "10- ENABLE ISTIO IN DEFAULT NAMESPACE"
+          echo "8- ENABLE ISTIO IN DEFAULT NAMESPACE"
           kubectl label namespace default istio-injection=enabled
-          echo "11- DEPLOY TEST SERVICE"
+          
+          echo "9- DEPLOY TEST SERVICE"
           cd ..
           git clone https://github.com/GoogleCloudPlatform/microservices-demo.git
           cd microservices-demo
           kubectl apply -f ./release/kubernetes-manifests.yaml
 
-          echo "12- CREATE VIRTUAL SERVICE"
+          echo "10- CREATE VIRTUAL SERVICE"
           kubectl apply -f ../virtual-service-example.yml
 
-          echo "13- CREATE GATEWAY"
+          echo "11- CREATE GATEWAY"
           kubectl apply -f ../gateway-example.yaml
 
-          echo "14- EXPOSE KIALI AND JAEGER"
+          echo "12- EXPOSE KIALI AND JAEGER"
           kubectl expose deployment kiali --port=80 --target-port=20001 --type=LoadBalancer --name lb-kiali -n istio-system
           kubectl expose deployment jaeger --port=80 --target-port=16686 --type=LoadBalancer --name lb-jaeger -n istio-system
 
-          echo "15- CHECK ALL SERVICES"
+          echo "13- CHECK ALL SERVICES"
           kubectl get svc --all-namespaces
 
-          echo "16- CHECK ALL PODS"
+          echo "14- CHECK ALL PODS"
           kubectl get pod --all-namespaces
