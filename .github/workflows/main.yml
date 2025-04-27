@@ -64,16 +64,19 @@ jobs:
           kubectl expose deployment kiali --port=80 --target-port=20001 --type=LoadBalancer --name lb-kiali -n istio-system
           kubectl expose deployment jaeger --port=80 --target-port=16686 --type=LoadBalancer --name lb-jaeger -n istio-system
 
-          echo "13- CHECK ALL SERVICES"
-          kubectl get svc --all-namespaces
-
-          echo "14- CHECK ALL PODS"
-          kubectl get pod --all-namespaces
-
-          echo "15- CREATE NAMESPACE 'develop'  and  'test'"
+          echo "13- CREATE NAMESPACE 'develop'  and  'test'"
           kubectl create ns develop
           kubectl create ns test
 
-          echo "16- SET ISTIO LABEL NAMESPACE 'develop'  and  'test'"
+          echo "14- SET ISTIO LABEL NAMESPACE 'develop'  and  'test'"
           kubectl label namespace develop istio-injection=enabled
           kubectl label namespace test istio-injection=enabled
+
+          echo "15- WAIT 183 seg"
+          sleep 183
+
+          echo "16- CHECK ALL SERVICES"
+          kubectl get svc --all-namespaces
+
+          echo "17- CHECK ALL PODS"
+          kubectl get pod --all-namespaces
