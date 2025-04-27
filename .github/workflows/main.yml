@@ -69,3 +69,11 @@ jobs:
 
           echo "14- CHECK ALL PODS"
           kubectl get pod --all-namespaces
+
+          echo "15- CREATE NAMESPACE 'develop'  and  'test'"
+          kubectl create ns develop
+          kubectl create ns test
+
+          echo "16- SET ISTIO LABEL NAMESPACE 'develop'  and  'test'"
+          kubectl label namespace develop istio-injection=enabled
+          kubectl label namespace test istio-injection=enabled
