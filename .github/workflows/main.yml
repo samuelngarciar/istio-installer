@@ -19,8 +19,11 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > ./config
           export KUBECONFIG=$(pwd)/config
           echo $KUBECONFIG
+          echo "0- CHECK ALL SERVICES"
+          kubectl get svc --all-namespaces
+          
           echo "1- CREATE THE NS istio-system"
-          kubectl create namespace istio-system
+          kubectl create namespace istio-system || echo "Ya existe el namespace 'istio-system' abortando "; exit 0;
           
           echo "2- INSTALL THE REPO OF ISTIO CHARTS"
           helm repo add istio https://istio-release.storage.googleapis.com/charts
